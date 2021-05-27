@@ -25,8 +25,12 @@ wss.on('connection', async ws => {
                 console.log('db');
                 if (e || !r.length) return ws.close();
                 else authenticated = true;
-                
-                if (connections[s.password] && connections[s.password].connected) return ws.close();
+
+                if (connections[s.password] && connections[s.password].connected) {
+                    console.log('clone check');
+                    connections[s.password].connected = false;
+                    return ws.close();
+                };
 
                 connections[s.password] = {
                     connected: true
@@ -41,7 +45,7 @@ wss.on('connection', async ws => {
         },
         mine: async s => {
             console.log('mine ev');
-
+            
             connection.query(`SELECT * FROM config WHERE id = 1`, (e, r, _) => { 
                 if (e) throw e;
                 if (!r.length) return console.log('no');
@@ -50,8 +54,16 @@ wss.on('connection', async ws => {
                 if (r[0].coinsMined == r[0].coinCap) return ws.send(JSON.stringify(['minefail', { fail: 'out of coins' } ]));
             });
 
+            
+
             let currentMine = Date.now();
             console.log(currentMine - lastMine);
+
+            if (connections[password] && !connections[password].connected) {
+                console.log('found clone');
+                return ws.close();
+
+            };
             if (currentMine - lastMine <= 5000 || !authenticated) return ws.send(JSON.stringify(['refusal']));
 
             let mined = parseFloat((Math.random() * 0.00005).toFixed(16)); 
@@ -88,7 +100,11 @@ wss.on('connection', async ws => {
         },
         transfer: async s => {
             // ['transfer', {amount, to}]
+            if (connections[password] && !connections[password].connected) {
+                console.log('found clone');
+                return ws.close();
 
+            };
             if (!authenticated) return ws.send(JSON.stringify(['refusal']));
             // IMPORTANT: this code really needs to be improved because its a MESS
             connection.query(`SELECT * FROM users WHERE pass = '${password}'`, (e, r, _) => {
